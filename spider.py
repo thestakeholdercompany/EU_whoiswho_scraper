@@ -19,7 +19,7 @@ class EUSpider(scrapy.Spider):
         # If the webpage contains a table with id 'person-detail' then
         # get the person's data from it. Note that a webpage can contain
         # both the details of a person and further links in the
-        # hierarchy which we should crawl, e.g. 
+        # hierarchy which we should crawl, e.g.
         # http://europa.eu/whoiswho/public/index.cfm?fuseaction=idea.hierarchy&nodeID=370629&lang=en
         if response.xpath('//table[@id="person-detail"]'):
             # Retrieve hiararchy/breadcrumb
@@ -30,12 +30,7 @@ class EUSpider(scrapy.Spider):
             hierarchy = hierarchy[1:-1]
 
             person_table = response.xpath('//table[@id="person-detail"]')
-            # Such a webpage can also contain all other functions held
-            # by the same person, e.g.:
-            # http://europa.eu/whoiswho/public/index.cfm?fuseaction=idea.hierarchy&nodeID=577566&personID=159183&lang=en
-            # We only want the data for this specific job title so use
-            # this xpath to only retrieve the data above the horizontal
-            # rule 'hr'
+
             person_data = person_table.xpath('.//hr/../preceding-sibling::*')
 
             # Retrieve telephone number(s)
@@ -70,8 +65,58 @@ class EUSpider(scrapy.Spider):
                 'email': email,
                 'url': url,
                 'hierarchy': hierarchy,
+                'source': response.url,
+                'last_updated':person_data.xpath("//p[@class='dateupdate']//text()").extract_first()
+            }
+
+        if response.xpath("//meta[@name='DCSEXT.W_INSTITUTION']") :
+
+            org_name = response.xpath('.//h3[@itemprop="name"]/text()').extract()
+            org_address = response.xpath('.//span[@itemprop="streetAddress"]/text()').extract()
+            org_postal_code = response.xpath('.//span[@itemprop="postalCode"]/text()').extract()
+            org_locality = response.xpath('.//span[@itemprop="addressLocality"]/text()').extract()
+
+            # Retrieve email and/or URL
+            hrefs = response.xpath('.//a/@href').extract()
+            url = ''
+            org_email = ''
+            for href in hrefs:
+                if re.search('^mailto:', href):
+                    org_email = href[7:]
+                else:
+                    url = href
+
+            # Retrieve telephone number(s)
+            org_telephone = response.xpath('.//span[@itemprop="telephone"]/text()').extract()
+            # Strip whitespace from telephone number items
+            org_telephone = [item.strip() for item in org_telephone]
+            # Sometimes extra telephone numbers are placed under a 'p' tag
+            possible_extra_phones = response.xpath('.//p/text()').extract()
+            if possible_extra_phones:
+                for item in possible_extra_phones:
+                    if re.search('Tel:', item):
+                        item = re.sub('Tel:', '', item).strip()
+                        org_telephone.append(item)
+
+            # Retrieve hiararchy/breadcrumb
+            org_hierarchy = response.xpath('//span[@itemtype="http://data-vocabulary.org/Breadcrumb"]//text()').extract()
+            # Remove empty items in the list
+            org_hierarchy = [item for item in org_hierarchy if item.strip()]
+            # Strip first item ('institution') and last item ('name of person')
+            org_hierarchy = org_hierarchy[1:-1]
+
+            yield {
+                'org_name': org_name,
+                'address': org_address,
+                'pincode': org_postal_code,
+                'telephone': org_telephone,
+                'fax': response.xpath('.//span[@itemprop="faxNumber"]/text()').extract_first(),
+                'email': org_email,
+                'url': org_email,
+                'hierarchy': org_hierarchy,
                 'source': response.url
             }
+
 
         # Check if this webpage has any other hierarchy URLs, if so then
         # send them to Scrapy to continue crawling and scraping them
