@@ -66,7 +66,7 @@ class EUSpider(scrapy.Spider):
                 'url': url,
                 'hierarchy': hierarchy,
                 'source': response.url,
-                'last_updated':person_data.xpath("//p[@class='dateupdate']//text()").extract_first()
+                'last_updated':person_data.xpath("//p[@class='dateupdate']//text()").extract_first().replace("Last update: ", "")
             }
 
         if response.xpath("//meta[@name='DCSEXT.W_INSTITUTION']") :
