@@ -1,16 +1,15 @@
-#!/usr/bin/env python
-
 import re
 import scrapy
 
 # Scrapy spider to crawl and scrape all persons from the EU Whoiswho
 # website: http://europa.eu/whoiswho/public/
 
+
 class EUSpider(scrapy.Spider):
     name = 'euspider'
     # Crawl the website using its 'hierarchy' structure
     start_urls = ['http://europa.eu/whoiswho/public/index.cfm?fuseaction=idea.hierarchy&lang=en']
-    
+
     # Be nice, wait 0.5 seconds between URLs downloads (will take
     # roughly 9 hours to retrieve all pages)
     custom_settings = {'DOWNLOAD_DELAY': 0.5}
@@ -20,7 +19,8 @@ class EUSpider(scrapy.Spider):
         # If the webpage contains a table with id 'person-detail' then
         # get the person's data from it. Note that a webpage can contain
         # both the details of a person and further links in the
-        # hierarchy which we should crawl, e.g. http://europa.eu/whoiswho/public/index.cfm?fuseaction=idea.hierarchy&nodeID=370629&lang=en
+        # hierarchy which we should crawl, e.g. 
+        # http://europa.eu/whoiswho/public/index.cfm?fuseaction=idea.hierarchy&nodeID=370629&lang=en
         if response.xpath('//table[@id="person-detail"]'):
             # Retrieve hiararchy/breadcrumb
             hierarchy = response.xpath('//span[@itemtype="http://data-vocabulary.org/Breadcrumb"]//text()').extract()
@@ -31,7 +31,8 @@ class EUSpider(scrapy.Spider):
 
             person_table = response.xpath('//table[@id="person-detail"]')
             # Such a webpage can also contain all other functions held
-            # by the same person, e.g.: http://europa.eu/whoiswho/public/index.cfm?fuseaction=idea.hierarchy&nodeID=577566&personID=159183&lang=en
+            # by the same person, e.g.:
+            # http://europa.eu/whoiswho/public/index.cfm?fuseaction=idea.hierarchy&nodeID=577566&personID=159183&lang=en
             # We only want the data for this specific job title so use
             # this xpath to only retrieve the data above the horizontal
             # rule 'hr'
@@ -74,6 +75,8 @@ class EUSpider(scrapy.Spider):
 
         # Check if this webpage has any other hierarchy URLs, if so then
         # send them to Scrapy to continue crawling and scraping them
-        for url in response.xpath('//table[@id="mainContent"]//ul//a/@href').re('.*index\.cfm\?fuseaction=idea\.hierarchy&nodeID=.*'):
-            print url
-            yield scrapy.Request(response.urljoin(url))
+        for url in response.xpath('//table[@id="mainContent"]//ul//a/@href').extract():
+            matching = re.match('.*index\.cfm\?fuseaction=idea\.hierarchy&nodeID=.*', url)
+            if matching:
+                print(matching, url)
+                yield scrapy.Request(response.urljoin(url))
